@@ -37,12 +37,46 @@ const store: Store = {
     feeds: []
 };
 
-function getData<AjaxResponse>(url: string): AjaxResponse {
-    ajax.open('GET', url, false);
-    ajax.send();
+class Api {
+    getRequest<AjaxResponse>(url: string): AjaxResponse {
+        const ajax = new XMLHttpRequest();
+        ajax.open('GET', url, false);
+        ajax.send();
 
-    return JSON.parse(ajax.response);
+        return JSON.parse(ajax.response);
+    }
 }
+
+// 다중상속이 필요할때는 믹스인을 사용 (js, ts 클래스에서는 다중상속 미지원)
+function applyApiMixins(targetClass: any, baseClasses: any[]): void {
+    baseClasses.forEach(baseClass => {
+        Object.getOwnPropertyNames(baseClass.prototype).forEach(name => {
+            const descriptor = Object.getOwnPropertyDescriptor(baseClass.prototype, name);
+            
+            if (descriptor) {
+                Object.defineProperty(targetClass.prototype, name, descriptor);
+            }            
+        });
+    });
+}
+
+class NewsFeedApi {
+    getData(): NewsFeed[] {
+        return this.getRequest<NewsFeed[]>(NEWS_URL);
+    }
+}
+
+class NewsDetailApi {
+    getData(id: string): NewsDetail {
+        return this.getRequest<NewsDetail>(CONTENT_URL.replace('@id', id));
+    }
+}
+
+interface NewsFeedApi extends Api {};
+interface NewsDetailApi extends Api {};
+
+applyApiMixins(NewsFeedApi, [Api]);
+applyApiMixins(NewsDetailApi, [Api]);
 
 function makedFeeds(feeds: NewsFeed[]): NewsFeed[] {
     for (let i = 0; i < feeds.length; i++) {
@@ -61,6 +95,7 @@ function updateView(html: string): void {
 }
 
 function newsFeed(): void {
+    const api = new NewsFeedApi();
     let newsFeed: NewsFeed[] = store.feeds;
     const newsList = [];
     let template = `
@@ -89,7 +124,7 @@ function newsFeed(): void {
     `;
 
     if (newsFeed.length === 0) {
-        newsFeed = store.feeds = makedFeeds(getData<NewsFeed[]>(NEWS_URL));
+        newsFeed = store.feeds = makedFeeds(api.getData());
     }
 
     for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
@@ -125,7 +160,8 @@ function newsFeed(): void {
 
 function newsDetail(): void {
     const id = location.hash.substr(7);
-    const newsContent = getData<NewsDetail>(CONTENT_URL.replace('@id', id));
+    const api = new NewsDetailApi();
+    const newsContent = api.getData(id);
     let template = `
         <div class="bg-gray-600 min-h-screen pb-8">
             <div class="bg-white text-xl">
