@@ -1,7 +1,7 @@
 import View from '../core/view';
 import { NewsDetailApi } from '../core/api';
 import { NewsDetail, NewsComment, NewsStore } from '../types';
-import { CONTENT_URL } from './../config';
+import { CONTENT_URL } from '../config';
 
 const template = `
     <div class="bg-gray-600 min-h-screen pb-8">
